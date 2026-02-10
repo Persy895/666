@@ -120,12 +120,17 @@ def run_hand(
         print("\n  You fold. Hand over.\n")
         return
 
+    hero_already_in = state.street_invested.get("Hero", 0.0)
     if hero_action == ActionType.CALL:
-        state.pot += hero_amount
-        state.hero_stack -= hero_amount
+        additional = max(0, hero_amount - hero_already_in)
+        state.pot += additional
+        state.hero_stack -= additional
+        state.street_invested["Hero"] = hero_amount
     elif hero_action in (ActionType.RAISE, ActionType.BET):
-        state.pot += hero_amount
-        state.hero_stack -= hero_amount
+        additional = max(0, hero_amount - hero_already_in)
+        state.pot += additional
+        state.hero_stack -= additional
+        state.street_invested["Hero"] = hero_amount
         state.current_bet = hero_amount
 
     state.action_history.append(
@@ -138,36 +143,45 @@ def run_hand(
         for v in state.villains:
             if v.name not in state.active_villains:
                 continue
-            # Only villains who haven't acted or need to respond
             resp = generate_villain_preflop_action(
                 v, state, facing_raise=True, raise_amount=hero_amount,
             )
             state.action_history.append(resp)
+            v_already_in = state.street_invested.get(v.name, 0.0)
             if resp.action_type == ActionType.FOLD:
                 state.active_villains.remove(v.name)
                 print(f"  {resp}")
             elif resp.action_type == ActionType.CALL:
-                state.pot += resp.amount
-                v.stack -= resp.amount
-                print(f"  {resp}")
+                additional = max(0, resp.amount - v_already_in)
+                state.pot += additional
+                v.stack -= additional
+                state.street_invested[v.name] = resp.amount
+                print(f"  {v.name} call ${additional:.0f}")
             elif resp.action_type == ActionType.RAISE:
-                state.pot += resp.amount
-                v.stack -= resp.amount
-                print(f"  {resp}")
+                additional = max(0, resp.amount - v_already_in)
+                state.pot += additional
+                v.stack -= additional
+                state.street_invested[v.name] = resp.amount
+                print(f"  {v.name} raise to ${resp.amount:.0f}")
                 # Simplified: hero gets one more action vs 3bet
                 print(f"\n  Facing 3-bet to ${resp.amount:.0f}")
                 print(f"  Pot: ${state.pot:.0f}")
                 state.current_bet = resp.amount
                 h_act, h_amt = _get_hero_action(state, "Preflop (vs 3bet)")
+                hero_in = state.street_invested.get("Hero", 0.0)
                 if h_act == ActionType.FOLD:
                     print("\n  You fold to the 3-bet. Hand over.\n")
                     return
                 elif h_act == ActionType.CALL:
-                    state.pot += h_amt
-                    state.hero_stack -= h_amt
+                    h_additional = max(0, h_amt - hero_in)
+                    state.pot += h_additional
+                    state.hero_stack -= h_additional
+                    state.street_invested["Hero"] = h_amt
                 elif h_act in (ActionType.RAISE, ActionType.BET):
-                    state.pot += h_amt
-                    state.hero_stack -= h_amt
+                    h_additional = max(0, h_amt - hero_in)
+                    state.pot += h_additional
+                    state.hero_stack -= h_additional
+                    state.street_invested["Hero"] = h_amt
 
     if not state.active_villains:
         print("\n  All villains fold! You win the pot of ${:.0f}.\n".format(state.pot))
@@ -178,6 +192,7 @@ def run_hand(
     # =========================================================================
     flop = gen.deal_flop(state)
     state.current_bet = 0.0
+    state.street_invested = {}  # reset per-street tracking
 
     # Villain postflop action (those OOP to hero)
     villain_flop_actions = gen.generate_villain_postflop_actions(state, hero_acted=False)
@@ -225,6 +240,7 @@ def run_hand(
     # =========================================================================
     turn = gen.deal_turn(state)
     state.current_bet = 0.0
+    state.street_invested = {}  # reset per-street tracking
 
     villain_turn_actions = gen.generate_villain_postflop_actions(state, hero_acted=False)
     print(format_postflop_display(state, "Turn", villain_turn_actions))
@@ -267,6 +283,7 @@ def run_hand(
     # =========================================================================
     river = gen.deal_river(state)
     state.current_bet = 0.0
+    state.street_invested = {}  # reset per-street tracking
 
     villain_river_actions = gen.generate_villain_postflop_actions(state, hero_acted=False)
     print(format_postflop_display(state, "River", villain_river_actions))
@@ -319,9 +336,9 @@ def _get_hero_action(state: HandState, street_name: str) -> tuple[ActionType, fl
             if action == ActionType.CHECK and state.current_bet > 0:
                 print("  Cannot check - there's a bet to you. Choose call/raise/fold.")
                 continue
-            if action in (ActionType.BET,) and state.current_bet > 0:
-                print("  There's already a bet. Use 'raise [amount]' instead.")
-                continue
+            # Auto-convert "bet" to "raise" when facing a bet
+            if action == ActionType.BET and state.current_bet > 0:
+                action = ActionType.RAISE
 
             return action, amount
 

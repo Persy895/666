@@ -224,6 +224,9 @@ class HandState:
     # History
     action_history: list[PlayerAction] = field(default_factory=list)
 
+    # Per-street investment tracking {villain_name: amount_invested_this_street}
+    street_invested: dict[str, float] = field(default_factory=dict)
+
     # S/B/C path
     texture_path: list[BoardTexture] = field(default_factory=list)
 

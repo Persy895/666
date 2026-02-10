@@ -216,6 +216,23 @@ class ScenarioGenerator:
         current_raise = self.bb
         has_raise = False
 
+        # Track preflop investments: blinds are already posted
+        state.street_invested = {}
+        for v in state.villains:
+            if v.position == Position.SB:
+                state.street_invested[v.name] = self.sb
+            elif v.position == Position.BB:
+                state.street_invested[v.name] = self.bb
+            else:
+                state.street_invested[v.name] = 0.0
+        # Hero blind tracking
+        if state.hero_position == Position.SB:
+            state.street_invested["Hero"] = self.sb
+        elif state.hero_position == Position.BB:
+            state.street_invested["Hero"] = self.bb
+        else:
+            state.street_invested["Hero"] = 0.0
+
         # Players acting before hero
         for pos in all_pos:
             if pos == hero_pos:
@@ -234,14 +251,20 @@ class ScenarioGenerator:
             )
             actions.append(action)
 
+            already_in = state.street_invested.get(villain.name, 0.0)
             if action.action_type == ActionType.FOLD:
                 state.active_villains.remove(villain.name)
             elif action.action_type == ActionType.CALL:
-                state.pot += action.amount
-                villain.stack -= action.amount
+                additional = max(0, action.amount - already_in)
+                state.pot += additional
+                villain.stack -= additional
+                state.street_invested[villain.name] = action.amount
+                action.amount = additional  # display the additional cost
             elif action.action_type == ActionType.RAISE:
-                state.pot += action.amount
-                villain.stack -= action.amount
+                additional = max(0, action.amount - already_in)
+                state.pot += additional
+                villain.stack -= additional
+                state.street_invested[villain.name] = action.amount
                 current_raise = action.amount
                 has_raise = True
 
