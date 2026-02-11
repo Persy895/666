@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poker Decision Trainer</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--dim:#8b949e;--green:#3fb950;--red:#f85149;--yellow:#d29922;--blue:#58a6ff;--orange:#f0883e;--S:#3fb950;--B:#58a6ff;--C:#f85149}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:16px}
+.container{max-width:900px;margin:0 auto}
+h1{text-align:center;margin:12px 0 4px;font-size:1.6em;letter-spacing:1px}
+.subtitle{text-align:center;color:var(--dim);margin-bottom:20px;font-size:.9em}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.panel h2{font-size:1.1em;margin-bottom:12px;color:var(--blue);border-bottom:1px solid var(--border);padding-bottom:8px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:200px}
+.stat{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin:4px;font-size:.9em}
+.stat .label{color:var(--dim);font-size:.75em;display:block}
+.stat .value{font-weight:700;font-size:1.15em}
+.cards{font-size:1.5em;letter-spacing:3px;font-weight:700;padding:8px 0}
+.cards .h,.cards .d{color:#e74c3c}
+.cards .c,.cards .s{color:#ecf0f1}
+.board-cards{font-size:1.8em;letter-spacing:4px;text-align:center;padding:16px;background:linear-gradient(135deg,#1a3a1a,#0d1117);border-radius:12px;margin:8px 0}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:700;font-size:.85em;margin:0 4px}
+.badge-S{background:var(--S);color:#000}.badge-B{background:var(--B);color:#000}.badge-C{background:var(--C);color:#fff}
+.villain-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin:6px 0}
+.villain-card .type-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.75em;font-weight:700;background:var(--orange);color:#000;margin-left:6px}
+.villain-card .stats{color:var(--dim);font-size:.8em;margin-top:4px}
+.action-log{background:var(--bg);border-radius:8px;padding:10px;margin:8px 0;font-size:.9em}
+.action-log .entry{padding:4px 0;border-bottom:1px solid var(--border)}
+.action-log .entry:last-child{border:none}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
+.btn{padding:12px 28px;border:2px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font-size:1em;font-weight:600;cursor:pointer;transition:all .15s}
+.btn:hover{border-color:var(--blue);background:#1a2332}
+.btn-fold{border-color:var(--red)}.btn-fold:hover{background:#2a1518;border-color:var(--red)}
+.btn-check{border-color:var(--dim)}.btn-check:hover{background:#1a1f26}
+.btn-call{border-color:var(--green)}.btn-call:hover{background:#1a2e1a}
+.btn-bet{border-color:var(--yellow)}.btn-bet:hover{background:#2a2518}
+.btn-raise{border-color:var(--orange)}.btn-raise:hover{background:#2a1f18}
+.btn-primary{background:var(--blue);color:#000;border-color:var(--blue);font-size:1.1em;padding:14px 36px}
+.btn-primary:hover{background:#79b8ff}
+.amount-input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:1em;width:120px;text-align:center}
+.amount-input:focus{outline:none;border-color:var(--blue)}
+.analysis-box{background:var(--bg);border-left:4px solid var(--blue);border-radius:0 8px 8px 0;padding:16px;margin:10px 0}
+.analysis-box.good{border-left-color:var(--green)}
+.analysis-box.bad{border-left-color:var(--red)}
+.feedback-item{padding:6px 0;font-size:.9em}
+.correction{color:var(--red);font-weight:600}
+.warning{color:var(--yellow);font-weight:600}
+.rec{color:var(--green);font-weight:600;font-size:1em}
+.ev-box{background:#1a1f26;border-radius:8px;padding:10px;margin:8px 0;font-family:monospace;font-size:.85em;color:var(--dim)}
+.showdown-result{text-align:center;padding:20px;font-size:1.3em;font-weight:700;border-radius:12px;margin:12px 0}
+.showdown-result.win{background:#1a3a1a;color:var(--green);border:2px solid var(--green)}
+.showdown-result.lose{background:#2a1518;color:var(--red);border:2px solid var(--red)}
+.showdown-result.tie{background:#2a2518;color:var(--yellow);border:2px solid var(--yellow)}
+.setup-form{display:flex;flex-direction:column;gap:12px;align-items:center}
+.setup-form select,.setup-form input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:1em;width:260px}
+.setup-form select:focus,.setup-form input:focus{outline:none;border-color:var(--blue)}
+.setup-form label{color:var(--dim);font-size:.85em;margin-bottom:-6px}
+.texture-path{font-size:1.2em;font-weight:700;letter-spacing:2px}
+.hidden{display:none}
+.mdf-bar{height:6px;background:var(--border);border-radius:3px;margin:4px 0;overflow:hidden}
+.mdf-bar-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .3s}
+@media(max-width:600px){.row{flex-direction:column}.cards{font-size:1.2em}.board-cards{font-size:1.4em}.btn{padding:10px 18px;font-size:.9em}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>♠ Poker Decision Trainer ♣</h1>
+  <div class="subtitle">$1/$3 NLH Cash Game &bull; S/B/C Board Texture Model &bull; Human-in-the-Loop</div>
+
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen" class="panel">
+    <h2>New Hand / มือใหม่</h2>
+    <div class="setup-form">
+      <label>Position</label>
+      <select id="inp-pos">
+        <option value="">Random</option>
+        <option value="UTG">UTG</option><option value="UTG1">UTG+1</option><option value="UTG2">UTG+2</option>
+        <option value="LJ">Lojack</option><option value="HJ">Hijack</option><option value="CO" selected>Cutoff</option>
+        <option value="BTN">Button</option><option value="SB">Small Blind</option><option value="BB">Big Blind</option>
+      </select>
+      <label>Your Cards (e.g. Ah Kd) — leave blank for random</label>
+      <input id="inp-cards" placeholder="e.g. Ah Kd" autocomplete="off">
+      <label>Villains (1-4)</label>
+      <select id="inp-villains">
+        <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option>
+      </select>
+      <button class="btn btn-primary" onclick="startHand()">Deal Hand</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game-screen" class="hidden">
+    <!-- Street header -->
+    <div class="panel">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <div>
+          <h2 id="street-label" style="border:none;padding:0;margin:0">PREFLOP</h2>
+          <div id="texture-display" class="texture-path" style="margin-top:4px"></div>
+        </div>
+        <div style="text-align:right">
+          <span class="stat"><span class="label">Pot</span><span class="value" id="pot-val">$0</span></span>
+          <span class="stat"><span class="label">SPR</span><span class="value" id="spr-val">0</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Board -->
+    <div id="board-panel" class="board-cards hidden"></div>
+
+    <!-- Hero info -->
+    <div class="panel">
+      <div class="row">
+        <div class="col">
+          <div style="color:var(--dim);font-size:.8em">Your Hand</div>
+          <div class="cards" id="hero-cards"></div>
+          <div id="hand-name" style="color:var(--dim);font-size:.85em"></div>
+          <div id="classification-display" style="margin-top:4px"></div>
+        </div>
+        <div class="col">
+          <span class="stat"><span class="label">Position</span><span class="value" id="hero-pos"></span></span>
+          <span class="stat"><span class="label">Stack</span><span class="value" id="hero-stack"></span></span>
+          <span class="stat"><span class="label">Eff. Stack</span><span class="value" id="eff-stack"></span></span>
+        </div>
+      </div>
+      <div id="outs-display" style="margin-top:8px;color:var(--dim);font-size:.85em" class="hidden"></div>
+    </div>
+
+    <!-- Math panel -->
+    <div id="math-panel" class="panel hidden">
+      <h2>Math / คณิตศาสตร์</h2>
+      <div class="row">
+        <span class="stat" id="pot-odds-stat" class="hidden"><span class="label">Pot Odds</span><span class="value" id="pot-odds-val"></span></span>
+        <span class="stat"><span class="label">Equity vs Range</span><span class="value" id="equity-val">-</span></span>
+        <span class="stat" id="mdf-stat" class="hidden"><span class="label">Villain MDF</span><span class="value" id="mdf-val"></span></span>
+      </div>
+    </div>
+
+    <!-- Villains -->
+    <div class="panel">
+      <h2>Villains</h2>
+      <div id="villains-container"></div>
+    </div>
+
+    <!-- Action log -->
+    <div id="action-log-panel" class="panel hidden">
+      <h2>Action / แอคชั่น</h2>
+      <div id="action-log" class="action-log"></div>
+    </div>
+
+    <!-- Hero action buttons -->
+    <div id="action-panel" class="panel">
+      <h2>Your Turn / ถึงตาคุณ</h2>
+      <div id="facing-display" style="margin-bottom:10px;font-size:.95em;color:var(--dim)"></div>
+      <div class="btn-row" id="action-buttons"></div>
+      <div class="btn-row" id="amount-row" style="margin-top:8px;align-items:center">
+        <label style="color:var(--dim);font-size:.85em">Amount: $</label>
+        <input type="number" id="bet-amount" class="amount-input" value="0" min="0" step="1">
+        <button class="btn btn-bet" id="btn-size-33" onclick="setBetPct(0.33)">1/3</button>
+        <button class="btn btn-bet" id="btn-size-50" onclick="setBetPct(0.5)">1/2</button>
+        <button class="btn btn-bet" id="btn-size-67" onclick="setBetPct(0.67)">2/3</button>
+        <button class="btn btn-bet" id="btn-size-pot" onclick="setBetPct(1.0)">Pot</button>
+      </div>
+    </div>
+
+    <!-- Analysis (shown after action) -->
+    <div id="analysis-panel" class="panel hidden">
+      <h2>Coach Analysis / วิเคราะห์</h2>
+      <div id="analysis-content"></div>
+    </div>
+
+    <!-- Showdown -->
+    <div id="showdown-panel" class="panel hidden">
+      <h2>Showdown / โชว์ดาวน์</h2>
+      <div id="showdown-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/game';
+let gameState = null;
+let currentPot = 0;
+
+function $(id){ return document.getElementById(id) }
+
+function formatCards(raw){
+  if(!raw) return '';
+  const sym = {h:'<span class="h">♥</span>',d:'<span class="d">♦</span>',c:'<span class="c">♣</span>',s:'<span class="s">♠</span>'};
+  if(typeof raw === 'string') return raw;
+  return raw.map(c => {
+    const r = c.slice(0,-1), s = c.slice(-1);
+    return r + (sym[s]||s);
+  }).join(' ');
+}
+
+async function startHand(){
+  const pos = $('inp-pos').value;
+  const cardsRaw = $('inp-cards').value.trim();
+  const cards = cardsRaw ? cardsRaw.split(/\s+/) : null;
+  const nv = $('inp-villains').value;
+
+  const body = {num_villains: parseInt(nv)};
+  if(pos) body.position = pos;
+  if(cards && cards.length === 2) body.cards = cards;
+
+  const res = await fetch(API+'?action=new_hand', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const data = await res.json();
+  gameState = data.state;
+  showGame(data.display, null);
+}
+
+function showGame(display, analysis){
+  $('setup-screen').classList.add('hidden');
+  $('game-screen').classList.remove('hidden');
+  $('analysis-panel').classList.add('hidden');
+  $('showdown-panel').classList.add('hidden');
+
+  $('street-label').textContent = display.street;
+  currentPot = display.pot;
+  $('pot-val').textContent = '$' + Math.round(display.pot);
+  $('spr-val').textContent = display.spr;
+  $('hero-cards').innerHTML = formatCards(display.hero_cards_raw);
+  $('hero-pos').textContent = display.hero_position || gameState.hero_position;
+  $('hero-stack').textContent = '$' + Math.round(display.hero_stack || gameState.hero_stack);
+  $('eff-stack').textContent = '$' + Math.round(display.effective_stack);
+
+  // Board
+  if(display.board_raw && display.board_raw.length > 0){
+    $('board-panel').classList.remove('hidden');
+    $('board-panel').innerHTML = formatCards(display.board_raw);
+  } else {
+    $('board-panel').classList.add('hidden');
+  }
+
+  // Hand name + classification
+  if(display.hand_name){
+    $('hand-name').textContent = display.hand_name;
+    const cls = display.classification;
+    $('classification-display').innerHTML = `<span class="badge badge-${cls}">${cls}</span> ${display.reason_en || ''}`;
+  } else {
+    $('hand-name').textContent = '';
+    $('classification-display').innerHTML = '';
+  }
+
+  // Texture path
+  if(display.texture_path){
+    let tp = '';
+    for(const ch of display.texture_path){
+      tp += `<span class="badge badge-${ch}" style="font-size:.9em">${ch}</span>`;
+    }
+    $('texture-display').innerHTML = tp;
+  } else {
+    $('texture-display').innerHTML = '';
+  }
+
+  // Outs
+  if(display.outs !== undefined && display.outs > 0){
+    $('outs-display').classList.remove('hidden');
+    $('outs-display').textContent = `Outs: ${display.outs} (~${Math.round(display.outs_equity)}% equity from draws)`;
+  } else {
+    $('outs-display').classList.add('hidden');
+  }
+
+  // Villains
+  let vh = '';
+  for(const v of display.villains){
+    const status = v.active ? '🟢' : '🔴 FOLDED';
+    vh += `<div class="villain-card">
+      <strong>${v.name}</strong> (${v.position}) <span class="type-tag">${v.type}</span> ${v.active?'':'<span style="color:var(--red)"> FOLDED</span>'}
+      <div class="stats">Stack: $${v.stack} | VPIP/PFR: ${v.vpip}/${v.pfr} | 3Bet: ${v.three_bet}% | AF: ${v.af} | Fold CBet: ${v.ftcb}% | WTSD: ${v.wtsd}%</div>
+      <div style="color:var(--dim);font-size:.78em;margin-top:2px">${v.notes}</div>
+    </div>`;
+  }
+  $('villains-container').innerHTML = vh;
+
+  // Actions log
+  const allActions = [
+    ...(display.actions_before || []),
+    ...(display.villain_street_actions || [])
+  ];
+  if(allActions.length > 0){
+    $('action-log-panel').classList.remove('hidden');
+    let al = '';
+    for(const a of allActions){
+      const amt = a.amount > 0 ? ` $${Math.round(a.amount)}` : '';
+      al += `<div class="entry">${a.actor} <strong>${a.action}</strong>${amt}</div>`;
+    }
+    $('action-log').innerHTML = al;
+  } else {
+    $('action-log-panel').classList.remove('hidden');
+    $('action-log').innerHTML = '<div class="entry" style="color:var(--dim)">No action yet</div>';
+  }
+
+  // Facing display
+  const facing = display.facing_bet || 0;
+  if(facing > 0){
+    $('facing-display').innerHTML = `Facing: <strong>$${Math.round(facing)}</strong> to call | Pot Odds: <strong>${display.pot_odds}%</strong>`;
+  } else {
+    $('facing-display').textContent = 'No bet to face — action is on you.';
+  }
+
+  // Action buttons
+  const opts = display.options || ['check','bet'];
+  let btns = '';
+  if(opts.includes('fold')) btns += `<button class="btn btn-fold" onclick="doAction('fold')">Fold</button>`;
+  if(opts.includes('check')) btns += `<button class="btn btn-check" onclick="doAction('check')">Check</button>`;
+  if(opts.includes('call')) btns += `<button class="btn btn-call" onclick="doAction('call')">Call $${Math.round(facing)}</button>`;
+  if(opts.includes('bet')) btns += `<button class="btn btn-bet" onclick="doAction('bet')">Bet</button>`;
+  if(opts.includes('raise')) btns += `<button class="btn btn-raise" onclick="doAction('raise')">Raise</button>`;
+  $('action-buttons').innerHTML = btns;
+
+  // Set default bet amount
+  $('bet-amount').value = Math.round(currentPot * 0.67);
+
+  // Show/hide amount row
+  $('amount-row').style.display = (opts.includes('bet') || opts.includes('raise')) ? 'flex' : 'none';
+
+  // Show analysis if present
+  if(analysis) showAnalysis(analysis);
+
+  $('action-panel').classList.remove('hidden');
+}
+
+function setBetPct(pct){
+  $('bet-amount').value = Math.round(currentPot * pct);
+}
+
+async function doAction(action){
+  if(!gameState) return;
+
+  const amount = parseFloat($('bet-amount').value) || 0;
+  const body = {state: gameState, action: action, amount: amount};
+
+  // Disable buttons
+  $('action-buttons').innerHTML = '<div style="color:var(--dim)">Thinking...</div>';
+
+  const res = await fetch(API+'?action=hero_act', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const data = await res.json();
+  gameState = data.state;
+
+  // Show villain responses
+  if(data.villain_responses && data.villain_responses.length > 0){
+    let existing = $('action-log').innerHTML;
+    existing += `<div class="entry" style="color:var(--blue)">Hero <strong>${action}</strong>${amount > 0 && action !== 'fold' && action !== 'check' ? ' $'+Math.round(amount) : ''}</div>`;
+    for(const r of data.villain_responses){
+      const amt = r.amount > 0 ? ` $${Math.round(r.amount)}` : '';
+      existing += `<div class="entry">${r.actor} <strong>${r.action}</strong>${amt}</div>`;
+    }
+    $('action-log').innerHTML = existing;
+  }
+
+  if(data.analysis) showAnalysis(data.analysis);
+
+  if(data.hand_complete){
+    $('action-panel').classList.add('hidden');
+    if(data.result === 'showdown') showShowdown(data.showdown);
+    else if(data.result === 'win'){
+      $('showdown-panel').classList.remove('hidden');
+      $('showdown-content').innerHTML = `<div class="showdown-result win">${data.message}</div>
+        <button class="btn btn-primary" onclick="resetToSetup()" style="margin-top:16px">New Hand</button>`;
+    } else if(data.result === 'fold'){
+      $('showdown-panel').classList.remove('hidden');
+      $('showdown-content').innerHTML = `<div class="showdown-result lose">${data.message}</div>
+        <button class="btn btn-primary" onclick="resetToSetup()" style="margin-top:16px">New Hand</button>`;
+    }
+    return;
+  }
+
+  // Continue to next street
+  if(data.display) showGame(data.display, data.analysis);
+}
+
+function showAnalysis(a){
+  $('analysis-panel').classList.remove('hidden');
+  const isGood = a.is_correct !== false;
+  let html = `<div class="analysis-box ${isGood ? 'good' : 'bad'}">`;
+  html += `<div style="margin-bottom:8px"><strong>Grade: <span style="color:${isGood?'var(--green)':'var(--red)'}"> ${a.grade}</span></strong></div>`;
+
+  if(a.spr_guide) html += `<div style="margin-bottom:8px;font-size:.85em;color:var(--dim)">${a.spr_guide}</div>`;
+
+  for(const fb of (a.feedback||[])){
+    html += `<div class="feedback-item">${fb}</div>`;
+  }
+  for(const c of (a.corrections||[])){
+    html += `<div class="feedback-item correction">⚠ ${c}</div>`;
+  }
+  for(const w of (a.warnings||[])){
+    html += `<div class="feedback-item warning">⚡ ${w}</div>`;
+  }
+
+  if(a.ev_text){
+    html += `<div class="ev-box">${a.ev_text}</div>`;
+  }
+
+  html += `<div class="rec" style="margin-top:10px">📌 ${a.recommendation_en}</div>`;
+  html += `<div style="color:var(--dim);font-size:.85em;margin-top:4px">🇹🇭 ${a.recommendation_th}</div>`;
+
+  // Equity details
+  if(a.equity_vs_villains){
+    html += '<div style="margin-top:10px">';
+    for(const [name, info] of Object.entries(a.equity_vs_villains)){
+      html += `<div style="font-size:.85em">vs ${name}: <strong>${info.equity}%</strong> equity<br><span style="color:var(--dim)">Range: ${info.range}</span></div>`;
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  $('analysis-content').innerHTML = html;
+}
+
+function showShowdown(sd){
+  $('showdown-panel').classList.remove('hidden');
+  let html = `<div style="text-align:center;margin-bottom:12px">
+    <div class="board-cards">${formatCards(sd.board ? sd.board.split ? sd.board : undefined : undefined) || sd.board}</div>
+    <div style="margin:8px 0">Your Hand: <strong>${sd.hero_hand}</strong></div>
+    <div style="color:var(--dim)">Texture Path: <strong>[${sd.texture_path}]</strong></div>
+    <div style="margin:4px 0">Final Pot: <strong>$${Math.round(sd.pot)}</strong></div>
+  </div>`;
+
+  for(const r of (sd.results||[])){
+    const cls = r.outcome === 'WIN' ? 'win' : r.outcome === 'TIE' ? 'tie' : 'lose';
+    html += `<div style="margin:8px 0;padding:8px;background:var(--bg);border-radius:8px">
+      <strong>${r.name}</strong>: ${formatCards(r.cards_raw)} → ${r.hand}
+    </div>`;
+    html += `<div class="showdown-result ${cls}">${r.outcome === 'WIN' ? '🎉 YOU WIN! +$'+Math.round(sd.pot) : r.outcome === 'TIE' ? '🤝 SPLIT POT' : '💀 YOU LOSE'}</div>`;
+  }
+
+  // Texture path breakdown
+  if(sd.texture_path){
+    const streets = ['Flop','Turn','River'];
+    const desc = {S:'Nut (สัมพันธ์กับไพ่ที่ดีที่สุด)',B:'Good (ดีแต่ไม่ใช่ nut)',C:'Unconnected (ไม่สัมพันธ์)'};
+    html += '<div style="margin-top:12px;font-size:.85em;color:var(--dim)">';
+    for(let i=0;i<sd.texture_path.length && i<3;i++){
+      const ch = sd.texture_path[i];
+      html += `<div>${streets[i]}: <span class="badge badge-${ch}">${ch}</span> ${desc[ch]||''}</div>`;
+    }
+    html += '</div>';
+  }
+
+  html += `<button class="btn btn-primary" onclick="resetToSetup()" style="margin-top:16px">New Hand</button>`;
+  $('showdown-content').innerHTML = html;
+}
+
+function resetToSetup(){
+  gameState = null;
+  $('setup-screen').classList.remove('hidden');
+  $('game-screen').classList.add('hidden');
+  $('analysis-panel').classList.add('hidden');
+  $('showdown-panel').classList.add('hidden');
+}
+</script>
+</body>
+</html>
