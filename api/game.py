@@ -1040,44 +1040,47 @@ def _get_options(facing):
 # =============================================================================
 
 class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        parsed = urlparse(self.path)
-        params = parse_qs(parsed.query)
-        action = params.get("action", [""])[0]
-
-        content_length = int(self.headers.get("Content-Length", 0))
-        body_raw = self.rfile.read(content_length)
-        body = json.loads(body_raw) if body_raw else {}
-
-        if action == "new_hand":
-            result = create_new_hand(body)
-        elif action == "hero_act":
-            result = process_hero_action(body)
-        else:
-            result = {"error": "Unknown action. Use ?action=new_hand or ?action=hero_act"}
-
-        self.send_response(200)
+    def _send_json(self, data, status=200):
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.end_headers()
-        self.wfile.write(json.dumps(result, ensure_ascii=False).encode("utf-8"))
+        self.wfile.write(json.dumps(data, ensure_ascii=False).encode("utf-8"))
+
+    def do_POST(self):
+        try:
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            action = params.get("action", [""])[0]
+
+            content_length = int(self.headers.get("Content-Length", 0))
+            body_raw = self.rfile.read(content_length) if content_length > 0 else b""
+            body = json.loads(body_raw) if body_raw else {}
+
+            if action == "new_hand":
+                result = create_new_hand(body)
+            elif action == "hero_act":
+                result = process_hero_action(body)
+            else:
+                result = {"error": f"Unknown action: '{action}'. Use ?action=new_hand or ?action=hero_act"}
+
+            self._send_json(result)
+        except Exception as e:
+            import traceback
+            self._send_json({"error": str(e), "traceback": traceback.format_exc()}, 500)
 
     def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+        self._send_json({})
 
     def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps({
+        self._send_json({
             "name": "Poker Decision Training Simulator",
             "version": "1.0.0",
+            "status": "ok",
             "endpoints": {
                 "POST /api/game?action=new_hand": "Start a new hand",
                 "POST /api/game?action=hero_act": "Submit action + get critique",
             }
-        }).encode("utf-8"))
+        })

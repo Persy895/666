@@ -87,7 +87,8 @@ h1{text-align:center;margin:12px 0 4px;font-size:1.6em;letter-spacing:1px}
       <select id="inp-villains">
         <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option>
       </select>
-      <button class="btn btn-primary" onclick="startHand()">Deal Hand</button>
+      <button class="btn btn-primary" id="btn-deal" onclick="startHand()">Deal Hand</button>
+      <div id="error-display" style="display:none;margin-top:12px;padding:12px;background:#2a1518;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:.85em;word-break:break-word"></div>
     </div>
   </div>
 
@@ -206,10 +207,28 @@ async function startHand(){
   if(pos) body.position = pos;
   if(cards && cards.length === 2) body.cards = cards;
 
-  const res = await fetch(API+'?action=new_hand', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  const data = await res.json();
-  gameState = data.state;
-  showGame(data.display, null);
+  const btn = $('btn-deal');
+  const errBox = $('error-display');
+  btn.disabled = true;
+  btn.textContent = 'Dealing...';
+  errBox.style.display = 'none';
+
+  try {
+    const res = await fetch(API+'?action=new_hand', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const data = await res.json();
+    if(data.error){
+      throw new Error(data.error + (data.traceback ? '\n' + data.traceback : ''));
+    }
+    gameState = data.state;
+    showGame(data.display, null);
+  } catch(e) {
+    errBox.style.display = 'block';
+    errBox.textContent = 'Error: ' + e.message;
+    console.error('startHand error:', e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Deal Hand';
+  }
 }
 
 function showGame(display, analysis){
@@ -336,41 +355,51 @@ async function doAction(action){
 
   // Disable buttons
   $('action-buttons').innerHTML = '<div style="color:var(--dim)">Thinking...</div>';
+  $('amount-row').style.display = 'none';
 
-  const res = await fetch(API+'?action=hero_act', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  const data = await res.json();
-  gameState = data.state;
-
-  // Show villain responses
-  if(data.villain_responses && data.villain_responses.length > 0){
-    let existing = $('action-log').innerHTML;
-    existing += `<div class="entry" style="color:var(--blue)">Hero <strong>${action}</strong>${amount > 0 && action !== 'fold' && action !== 'check' ? ' $'+Math.round(amount) : ''}</div>`;
-    for(const r of data.villain_responses){
-      const amt = r.amount > 0 ? ` $${Math.round(r.amount)}` : '';
-      existing += `<div class="entry">${r.actor} <strong>${r.action}</strong>${amt}</div>`;
+  try {
+    const res = await fetch(API+'?action=hero_act', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const data = await res.json();
+    if(data.error){
+      throw new Error(data.error + (data.traceback ? '\n' + data.traceback : ''));
     }
-    $('action-log').innerHTML = existing;
-  }
+    gameState = data.state;
 
-  if(data.analysis) showAnalysis(data.analysis);
-
-  if(data.hand_complete){
-    $('action-panel').classList.add('hidden');
-    if(data.result === 'showdown') showShowdown(data.showdown);
-    else if(data.result === 'win'){
-      $('showdown-panel').classList.remove('hidden');
-      $('showdown-content').innerHTML = `<div class="showdown-result win">${data.message}</div>
-        <button class="btn btn-primary" onclick="resetToSetup()" style="margin-top:16px">New Hand</button>`;
-    } else if(data.result === 'fold'){
-      $('showdown-panel').classList.remove('hidden');
-      $('showdown-content').innerHTML = `<div class="showdown-result lose">${data.message}</div>
-        <button class="btn btn-primary" onclick="resetToSetup()" style="margin-top:16px">New Hand</button>`;
+    // Show villain responses
+    if(data.villain_responses && data.villain_responses.length > 0){
+      let existing = $('action-log').innerHTML;
+      existing += `<div class="entry" style="color:var(--blue)">Hero <strong>${action}</strong>${amount > 0 && action !== 'fold' && action !== 'check' ? ' $'+Math.round(amount) : ''}</div>`;
+      for(const r of data.villain_responses){
+        const amt = r.amount > 0 ? ` $${Math.round(r.amount)}` : '';
+        existing += `<div class="entry">${r.actor} <strong>${r.action}</strong>${amt}</div>`;
+      }
+      $('action-log').innerHTML = existing;
     }
-    return;
-  }
 
-  // Continue to next street
-  if(data.display) showGame(data.display, data.analysis);
+    if(data.analysis) showAnalysis(data.analysis);
+
+    if(data.hand_complete){
+      $('action-panel').classList.add('hidden');
+      if(data.result === 'showdown') showShowdown(data.showdown);
+      else if(data.result === 'win'){
+        $('showdown-panel').classList.remove('hidden');
+        $('showdown-content').innerHTML = `<div class="showdown-result win">${data.message}</div>
+          <button class="btn btn-primary" onclick="resetToSetup()" style="margin-top:16px">New Hand</button>`;
+      } else if(data.result === 'fold'){
+        $('showdown-panel').classList.remove('hidden');
+        $('showdown-content').innerHTML = `<div class="showdown-result lose">${data.message}</div>
+          <button class="btn btn-primary" onclick="resetToSetup()" style="margin-top:16px">New Hand</button>`;
+      }
+      return;
+    }
+
+    // Continue to next street
+    if(data.display) showGame(data.display, data.analysis);
+  } catch(e) {
+    $('action-buttons').innerHTML = `<div style="color:var(--red);margin-bottom:8px">Error: ${e.message}</div>
+      <button class="btn btn-primary" onclick="resetToSetup()">New Hand</button>`;
+    console.error('doAction error:', e);
+  }
 }
 
 function showAnalysis(a){
