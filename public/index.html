@@ -26,7 +26,8 @@ h1{text-align:center;margin:12px 0 4px;font-size:1.6em;letter-spacing:1px}
 .badge-S{background:var(--S);color:#000}.badge-B{background:var(--B);color:#000}.badge-C{background:var(--C);color:#fff}
 .villain-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin:6px 0}
 .villain-card .type-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.75em;font-weight:700;background:var(--orange);color:#000;margin-left:6px}
-.villain-card .stats{color:var(--dim);font-size:.8em;margin-top:4px}
+.villain-card .stats{color:var(--dim);font-size:.8em;margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+.vstat{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 7px;white-space:nowrap}
 .action-log{background:var(--bg);border-radius:8px;padding:10px;margin:8px 0;font-size:.9em}
 .action-log .entry{padding:4px 0;border-bottom:1px solid var(--border)}
 .action-log .entry:last-child{border:none}
@@ -62,7 +63,19 @@ h1{text-align:center;margin:12px 0 4px;font-size:1.6em;letter-spacing:1px}
 .hidden{display:none}
 .mdf-bar{height:6px;background:var(--border);border-radius:3px;margin:4px 0;overflow:hidden}
 .mdf-bar-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .3s}
-@media(max-width:600px){.row{flex-direction:column}.cards{font-size:1.2em}.board-cards{font-size:1.4em}.btn{padding:10px 18px;font-size:.9em}}
+@media(max-width:600px){
+  body{padding:8px}
+  .row{flex-direction:column}
+  .cards{font-size:1.2em}
+  .board-cards{font-size:1.4em}
+  .btn{padding:11px 20px;font-size:.95em;min-width:44px}
+  .panel{padding:14px 12px}
+  .setup-form select,.setup-form input{width:100%;max-width:360px}
+  .amount-input{width:90px}
+  .stat{min-width:calc(50% - 12px)}
+  #amount-row{flex-wrap:wrap;justify-content:flex-start}
+  .villain-card .stats{font-size:.82em}
+}
 </style>
 </head>
 <body>
@@ -288,9 +301,17 @@ function showGame(display, analysis){
   for(const v of display.villains){
     const status = v.active ? '🟢' : '🔴 FOLDED';
     vh += `<div class="villain-card">
-      <strong>${v.name}</strong> (${v.position}) <span class="type-tag">${v.type}</span> ${v.active?'':'<span style="color:var(--red)"> FOLDED</span>'}
-      <div class="stats">Stack: $${v.stack} | VPIP/PFR: ${v.vpip}/${v.pfr} | 3Bet: ${v.three_bet}% | AF: ${v.af} | Fold CBet: ${v.ftcb}% | WTSD: ${v.wtsd}%</div>
-      <div style="color:var(--dim);font-size:.78em;margin-top:2px">${v.notes}</div>
+      <strong>${v.name}</strong> (${v.position}) <span class="type-tag">${v.type}</span>${v.active?'':'<span style="color:var(--red);margin-left:6px">FOLDED</span>'}
+      <div class="stats">
+        <span class="vstat">Stack: $${v.stack}</span>
+        <span class="vstat">VPIP: ${v.vpip}%</span>
+        <span class="vstat">PFR: ${v.pfr}%</span>
+        <span class="vstat">3Bet: ${v.three_bet}%</span>
+        <span class="vstat">AF: ${v.af}</span>
+        <span class="vstat">Fold CBet: ${v.ftcb}%</span>
+        <span class="vstat">WTSD: ${v.wtsd}%</span>
+      </div>
+      <div style="color:var(--dim);font-size:.78em;margin-top:4px">${v.notes}</div>
     </div>`;
   }
   $('villains-container').innerHTML = vh;
