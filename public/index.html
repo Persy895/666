@@ -258,7 +258,7 @@ function showGame(display, analysis){
   if(display.hand_name){
     $('hand-name').textContent = display.hand_name;
     const cls = display.classification;
-    $('classification-display').innerHTML = `<span class="badge badge-${cls}">${cls}</span> ${display.reason_en || ''}`;
+    $('classification-display').innerHTML = `<span class="badge badge-${cls}">${display.hand_name}</span> ${display.reason_en || ''}`;
   } else {
     $('hand-name').textContent = '';
     $('classification-display').innerHTML = '';
